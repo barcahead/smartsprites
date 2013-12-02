@@ -113,6 +113,7 @@ public class SpriteDirectiveOccurrenceCollector
         messageLog.setCssFile(cssFile);
 
         int lineNumber = -1;
+        String prev = null;
         String line;
 
         try
@@ -122,16 +123,18 @@ public class SpriteDirectiveOccurrenceCollector
                 messageLog.setLine(++lineNumber);
 
                 final String directiveString = extractSpriteReferenceDirectiveString(line);
-                if (directiveString == null)
+                if (prev == null || directiveString == null)
                 {
+                	prev = line;
                     continue;
                 }
 
-                final CssProperty backgroundProperty = extractSpriteReferenceCssProperty(line);
+                final CssProperty backgroundProperty = extractSpriteReferenceCssProperty(prev);
                 final String imageUrl = CssSyntaxUtils.unpackUrl(
                     backgroundProperty.value, messageLog);
                 if (imageUrl == null)
                 {
+                	prev = line;
                     continue;
                 }
 
@@ -139,11 +142,14 @@ public class SpriteDirectiveOccurrenceCollector
                     .parse(directiveString, spriteImageDirectives, messageLog);
                 if (directive == null)
                 {
+                	prev = line;
                     continue;
                 }
 
+                //replace the previous line 
                 directives.add(new SpriteReferenceOccurrence(directive, imageUrl,
-                    cssFile, lineNumber, backgroundProperty.important));
+                    cssFile, lineNumber-1, backgroundProperty.important));
+                prev = line;
             }
         }
         finally
@@ -283,11 +289,8 @@ public class SpriteDirectiveOccurrenceCollector
      * Extract the url to the image to be added to a sprite.
      */
     CssProperty extractSpriteReferenceCssProperty(String css)
-    {
-        final Matcher matcher = SPRITE_REFERENCE_DIRECTIVE.matcher(css);
-
-        // Remove the directive
-        final String noDirective = matcher.replaceAll("").trim();
+    {	
+    	final String noDirective = css.trim();
 
         final Collection<CssProperty> rules = CssSyntaxUtils
             .extractProperties(noDirective);
